@@ -12,9 +12,16 @@ const envSchema = z.object({
       }
       return num;
     }),
-    DATABASE_URL: z.string().min(1, "DATABASE_URL cannot be empty"),
-    PRODUCT_MICROSERVICE_PORT: z.coerce.number().min(1, "PRODUCT_MICROSERVICE_PORT cannot be empty"),
-    PRODUCT_MICROSERVICE_HOST: z.string().min(1, "PRODUCT_MICROSERVICE_HOST cannot be empty"),
+  NATS_SERVERS: z.string()
+    .min(1, "NATS_SERVERS cannot be empty")
+    .transform(val => {
+      // Dividir por coma y limpiar espacios en blanco
+      return val.split(',').map(url => url.trim());
+    })
+    .pipe(
+      // Validar que sea un array de URLs válidas
+      z.array(z.string().url()).min(1, "At least one NATS server URL must be provided")
+    ),
 });
 
 const result = envSchema.safeParse(process.env);
@@ -33,7 +40,5 @@ if (!result.success) {
 
 export const env = {
   port: result.data.PORT,
-  databaseUrl: result.data.DATABASE_URL,
-  productMicroservicePort: result.data.PRODUCT_MICROSERVICE_PORT,
-  productMicroserviceHost: result.data.PRODUCT_MICROSERVICE_HOST,
+  natsServers: result.data.NATS_SERVERS,
 };

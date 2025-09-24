@@ -15,23 +15,24 @@ import {
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { catchError, firstValueFrom, throwError } from 'rxjs';
 import { PaginationDto } from 'src/common';
-import { PRODUCT_SERVICE } from 'src/config';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+
+import { CreateProductDto, UpdateProductDto } from './dto';
+import { NATS_SERVICE } from 'src/config';
+
 
 @Controller('products')
 export class ProductsController {
   private readonly logger = new Logger('ProductsController');
 
   constructor(
-    @Inject(PRODUCT_SERVICE) private readonly productsClient: ClientProxy,
+    @Inject(NATS_SERVICE) private readonly client: ClientProxy,
   ) {}
 
   @Post()
   async createProduct(@Body() createProductDto: CreateProductDto) {
     try {
       return await firstValueFrom(
-        this.productsClient.send(
+        this.client.send(
           { cmd: 'create_product' },
           createProductDto
         ).pipe(
@@ -57,7 +58,7 @@ export class ProductsController {
   async findAllProducts(@Query() paginationDto: PaginationDto) {
     try {
       return await firstValueFrom(
-        this.productsClient.send(
+        this.client.send(
           { cmd: 'find_all_products' },
           { ...paginationDto }
         ).pipe(
@@ -83,7 +84,7 @@ export class ProductsController {
   async findProductById(@Param('id', ParseUUIDPipe) id: string) {
     try {
       return await firstValueFrom(
-        this.productsClient.send(
+        this.client.send(
           { cmd: 'find_one_product' },
           { id }
         ).pipe(
@@ -120,7 +121,7 @@ export class ProductsController {
       }
 
       return await firstValueFrom(
-        this.productsClient.send(
+        this.client.send(
           { cmd: 'update_product' },
           { ...updateProductDto, id }
         ).pipe(
@@ -148,7 +149,7 @@ export class ProductsController {
   async deleteProductById(@Param('id', ParseUUIDPipe) id: string) {
     try {
       return await firstValueFrom(
-        this.productsClient.send(
+        this.client.send(
           { cmd: 'soft_delete_product' },
           { id }
         ).pipe(
@@ -168,19 +169,5 @@ export class ProductsController {
         status: HttpStatus.INTERNAL_SERVER_ERROR
       });
     }
-  }
-
-  // Método helper para manejo centralizado de errores
-  private handleRpcError(operation: string, error: any, context?: string) {
-    const errorMessage = context 
-      ? `Failed to ${operation} for ${context}` 
-      : `Failed to ${operation}`;
-    
-    this.logger.error(errorMessage, error);
-    
-    return throwError(() => new RpcException({
-      message: error.message || errorMessage,
-      status: error.status || HttpStatus.INTERNAL_SERVER_ERROR
-    }));
   }
 }
